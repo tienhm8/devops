@@ -1,0 +1,136 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html:cached
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    networks:
+      - default
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # For Linux
+
+  webserver:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/var/www/html:cached
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - default
+
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "33060:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234qazx
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - ./docker/mariadb/mariadb.cnf:/etc/mysql/mariadb.cnf
+    networks:
+      - default
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=1234qazx
+    ports:
+      - "3380:80"
+    networks:
+      - default
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: hungna
+    volumes:
+      - mongodb-data:/var/lib/mongodb
+    networks:
+      - default
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "54320:5432"
+    environment:
+      POSTGRES_PASSWORD: 1234qazx
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    networks:
+      - default
+
+  redis-cache:
+    image: redis:latest
+    restart: always
+    ports:
+      - '63790:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass WPNMHpylaQjkPkI8oUBLk73ucNM3R1OWxtzJodhrGLVRqHZRr5Vt1vWrney2jjUQa5jjJC2/8HajqKX
+    volumes:
+      - redis-cache-data:/redis/cache
+
+  mailhog:
+    image: 'mailhog/mailhog:latest'
+    ports:
+      - '11025:1025'
+      - '18025:8025'
+    networks:
+      - default
+
+  rabbitmq:
+    image: 'rabbitmq:3-management-alpine'
+    container_name: 'rabbitmq'
+    ports:
+      - "56720:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq/data
+      - rabbitmq-logs:/var/log/rabbitmq/log
+    networks:
+      - default
+
+volumes:
+  mariadb-data:
+    driver: local
+  mongodb-data:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-cache-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  rabbitmq-logs:
+    driver: local
