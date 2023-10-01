@@ -1,8 +1,11 @@
 # Use the official PHP 8.1-fpm image as the base image
 FROM php:8.1-fpm
 
+LABEL maintainer="TienHM"
+
 # Copy composer.lock and composer.json
-COPY composer.lock composer.json /var/www/html/
+COPY ./src/composer.lock /var/www/html/
+COPY ./src/composer.json /var/www/html/
 
 # Set working directory
 WORKDIR /var/www/html
@@ -91,7 +94,8 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN apt-get update && apt-get install -y supervisor && rm -rf /var/lib/apt/lists/*
 
 # Copy your custom Supervisor configuration
-COPY ./docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./docker/supervisor/laravel-scheduler.conf /etc/supervisor/conf.d/laravel-scheduler.conf
+COPY ./docker/supervisor/laravel-worker.conf /etc/supervisor/conf.d/laravel-worker.conf
 
 # Add user for laravel application
 RUN groupadd -g 1000 www
@@ -100,13 +104,11 @@ RUN useradd -u 1000 -ms /bin/bash -g www www
 # Copy existing application directory contents
 COPY . /var/www/html
 
-# Copy existing application directory permissions
-# COPY --chown=www:www . /var/www/html
-
 # Permission
 RUN chown www:www /var/www/html
 RUN chown www:www /tmp
 
+RUN chmod 777 -R ./docker/data
 # Change current user to www
 USER www
 
